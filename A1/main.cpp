@@ -34,7 +34,7 @@ using namespace std;
 using namespace cv;
 
 // Number of images to be grabbed.
-static const uint32_t c_countOfImagesToGrab = 100;
+static const uint32_t c_countOfImagesToGrab = 500;
 
 int main(int argc, char* argv[])
 {
@@ -57,6 +57,7 @@ int main(int argc, char* argv[])
 		if (gainAuto.CanSetValue("off")) {
 			gainAuto.SetValue("off");
 		}
+		float gainValue = (float)15.0;
 
 		// Close auto balance white
 		CEnumParameter bwAuto(nodemap, "BalanceWhiteAuto");
@@ -71,7 +72,10 @@ int main(int argc, char* argv[])
 			expoAuto.SetValue("off");
 		}
 		// set initial value and increase step
-		float expoValue = 0.0f, expoStep = 5e4;
+		// [0.001, 0.005, 0.01, 0.03, 0.06, 0.1, 0.3, 0.5, 0.7, 0.9. 1]
+		float expoMax = (float)1e6;
+		float expoPercent = 1.0;
+		float expoValue = expoMax * expoPercent;
 
 		// Print the model name of the camera.
 		cout << "Using device " << camera.GetDeviceInfo().GetModelName() << endl;
@@ -96,6 +100,10 @@ int main(int argc, char* argv[])
 		// Camera.StopGrabbing() is called automatically by the RetrieveResult() method
 		// when c_countOfImagesToGrab images have been retrieved.
 		char c;
+
+		// Capture 20 images for each exposure value
+		int count = 0;
+		expoTime.SetValue(expoValue);
 		while (c = waitKey(1) && camera.IsGrabbing())
 		{
 			// Wait for an image and then retrieve it. A timeout of 5000 ms is used.
@@ -105,8 +113,8 @@ int main(int argc, char* argv[])
 			if (ptrGrabResult->GrabSucceeded())
 			{
 				// print current gain and expo
-				cout << "gain value: " << gain.GetValue() << endl;
-				std::cout << "current expo time: " << expoValue << endl;
+				cout << "gain value: " << gainValue << endl;
+				std::cout << "expo time: " << expoTime.GetValue() << endl;
 				// Access the image data.
 				cout << "SizeX: " << ptrGrabResult->GetWidth() << endl;
 				cout << "SizeY: " << ptrGrabResult->GetHeight() << endl;
@@ -123,13 +131,16 @@ int main(int argc, char* argv[])
 				/// show
 				resize(frame, frame, Size(frame.cols / 2, frame.rows / 2));
 				imshow("OpenCV Display Window", frame);
+				// 
+				count++;
+				cout << "cnt: " << count << endl;
 				// save image
-				imwrite(".//results//"+to_string(expoValue) + ".bmp", frame);
-				waitKey(100);
-				// set expo value for next grab
-				expoValue += expoStep;
-				if (expoValue > 1e6) break;
-				expoTime.SetValue(expoValue);
+				imwrite(".//results//"+to_string(gainValue) + "-" + to_string(count) + ".bmp", frame);
+				// if finish capturing 20 images
+				if (count % 20 == 0) {
+					// set expo value for next grab
+					break;
+				}
 			}
 			else
 			{
